@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled, { createGlobalStyle } from 'styled-components';
 import type { VocabWord, ParsedVocabData, ProcessStatus } from './types';
-import { parseHtmlFile, findCloseMatches } from './parser';
+import { parseHtmlFile, findCloseMatches, normalizeForMatch } from './parser';
 
 const GlobalStyle = createGlobalStyle`
   * {
@@ -1040,44 +1040,45 @@ const App: React.FC = () => {
                  <Section>
                    <SectionTitle>See Also</SectionTitle>
                    <RelatedWordsGrid>
-                     {allRelatedWords.map((w, i) => {
-                      const normalizedW = normalizeForMatch(w);
-                      const bgColor = normalizedW === match.Word_norm
-                        ? '#d0f0c0'
-                        : normalizedW === selectedWord
-                        ? '#fcd580'
-                        : '#fefefe';
-                      
-                      return (
-                        <RelatedWordChip key={i} $bgColor={bgColor}>
-                          <a 
-                            href={`https://www.merriam-webster.com/dictionary/${encodeURIComponent(w.toLowerCase())}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {w}
-                          </a>
-                          <IconButton 
-                            onClick={() => {
-                              // Navigate to related word
-                              const allWords = getFilteredAllWords();
-                              if (allWords.includes(w)) {
-                                setSelectedWord(w);
-                                setWordInput(w);
-                                const idx = allWords.indexOf(w);
-                                setCurrentWordIndex(idx + 1);
-                              }
-                              // Also copy the word
-                              handleCopyWord(w);
-                            }} 
-                            title="Copy & Navigate"
-                            $copied={copiedWords[w]}
-                          >
-                            {copiedWords[w] ? '✅' : '📋'}
-                          </IconButton>
-                        </RelatedWordChip>
-                      );
-                    })}
+            {allRelatedWords.map((w, i) => {
+              const normalizedW = normalizeForMatch(w);
+              const bgColor = normalizedW === match.Word_norm
+                ? '#d0f0c0'
+                : normalizedW === selectedWord
+                ? '#fcd580'
+                : '#fefefe';
+
+              return (
+                <RelatedWordChip key={i} $bgColor={bgColor}>
+                  <a
+                    href={`https://www.merriam-webster.com/dictionary/${encodeURIComponent(w.toLowerCase())}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {w}
+                  </a>
+                  <IconButton
+                    onClick={() => {
+                      // Navigate to related word (use normalized version for lookup)
+                      const allWords = getFilteredAllWords();
+                      if (allWords.includes(normalizedW)) {
+                        setSelectedWord(normalizedW);
+                        setWordInput(normalizedW);
+                        const idx = allWords.indexOf(normalizedW);
+                        setCurrentWordIndex(idx + 1);
+                        setActiveTab(0); // Reset to first tab
+                      }
+                      // Also copy the word
+                      handleCopyWord(w);
+                    }}
+                    title="Copy & Navigate"
+                    $copied={copiedWords[w]}
+                  >
+                    {copiedWords[w] ? '✅' : '📋'}
+                  </IconButton>
+                </RelatedWordChip>
+              );
+            })}
                    </RelatedWordsGrid>
                  </Section>
                  )}
@@ -1109,18 +1110,9 @@ const App: React.FC = () => {
           })}
         </TabContent>
       </WordInfoCard>
-    );
+);
   };
-  
-  const normalizeForMatch = (x: string): string => {
-    if (!x) return '';
-    let result = x.toLowerCase();
-    result = result.replace(/[\u00A0\u200B\t\r\n]/g, ' ');
-    result = result.replace(/\s+/g, ' ').trim();
-    result = result.replace(/^[[:punct:]]+|[[:punct:]]+$/g, '');
-    return result;
-  };
-  
+
   return (
     <>
       <GlobalStyle />
