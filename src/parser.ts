@@ -1,4 +1,4 @@
-import type { VocabWord, ParsedVocabData } from './types';
+import type { VocabWord, ParsedVocabData, ProgressCallback } from './types';
 
 // ============================================================
 // NORMALIZATION FUNCTIONS
@@ -9,7 +9,7 @@ export const normalizeForMatch = (x: string): string => {
   let result = x.toLowerCase();
   result = result.replace(/[\u00A0\u200B\t\r\n]/g, ' ');
   result = result.replace(/\s+/g, ' ').trim();
-  result = result.replace(/^[.,!?;:]+|[.,!?;:]+$/g, '');
+  result = result.replace(/^[.,!?;:'"()\[\]{}]+|[.,!?;:'"()\[\]{}]+$/g, '');
   return result;
 };
 
@@ -17,10 +17,14 @@ const normalizeText = (x: string): string => {
   if (!x) return '';
   let result = x;
   result = result.replace(/\u00A0/g, ' ');
-  result = result.replace(/[.,!?;:]+$/, '');
+  result = result.replace(/[.,!?;:'"()\[\]{}]+$/, '');
   result = result.replace(/\s+/g, ' ').trim();
   result = result.toLowerCase();
   return result;
+};
+
+const escapeRegex = (str: string): string => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
 // ============================================================
@@ -331,17 +335,17 @@ const matchCommentsToVocab = (
       }
     }
 
-    // TIER 3: Match in definition or example
-    const defExMatches: number[] = [];
-    if (exactMatches.length === 0 && relatedMatches.length === 0) {
-      const regex = new RegExp(`\\b${highlightLower.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i');
-      
-      for (let i = 0; i < vocabEntries.length; i++) {
-        if (regex.test(defNorms[i]) || regex.test(exNorms[i])) {
-          defExMatches.push(i);
-        }
+// TIER 3: Match in definition or example
+  const defExMatches: number[] = [];
+  if (exactMatches.length === 0 && relatedMatches.length === 0) {
+    const regex = new RegExp(`\\b${escapeRegex(highlightLower)}\\b`, 'i');
+
+    for (let i = 0; i < vocabEntries.length; i++) {
+      if (regex.test(defNorms[i]) || regex.test(exNorms[i])) {
+        defExMatches.push(i);
       }
     }
+  }
 
     // Combine all matches
     const allMatches = [...new Set([...exactMatches, ...relatedMatches, ...defExMatches])];
@@ -367,21 +371,34 @@ const matchCommentsToVocab = (
 // MAIN PARSE FUNCTION
 // ============================================================
 
-export const parseHtmlFile = (htmlContent: string, fileName: string): ParsedVocabData => {
+export interface ParseOptions {
+  onProgress?: ProgressCallback;
+}
+
+export const parseHtmlFile = (
+  htmlContent: string,
+  fileName: string,
+  options?: ParseOptions
+): ParsedVocabData => {
+  const { onProgress } = options || {};
+
+  // Stage 1: Parse HTML
+  onProgress?.('Reading file...', 5);
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlContent, 'text/html');
 
-  // Step 1: Parse vocabulary entries
+  // Stage 2: Extract vocabulary entries
+  onProgress?.('Extracting vocabulary entries...', 10);
   const vocabEntries = parseVocabularyEntries(doc);
 
   if (vocabEntries.length === 0) {
     throw new Error('No vocabulary entries found in the expected format.');
   }
 
-  // Step 2: Parse inline comments
+  // Stage 3: Convert to VocabWord format
+  onProgress?.('Processing entries...', 30);
   const rawComments = parseInlineComments(doc);
 
-  // Step 3: Convert raw entries to VocabWord format
   let wordIndex = 0;
   const words: VocabWord[] = vocabEntries.map(entry => {
     const catSplit = entry.category.split('|');
@@ -403,16 +420,21 @@ export const parseHtmlFile = (htmlContent: string, fileName: string): ParsedVoca
     };
   });
 
-  // Step 4: Match comments to vocabulary entries
+  // Stage 4: Match comments
+  onProgress?.('Matching comments...', 70);
   const { unmatchedHighlights } = matchCommentsToVocab(words, rawComments);
 
-  // Step 5: Process and return final data
+  // Stage 5: Calculate stats
+  onProgress?.('Calculating statistics...', 90);
   const mainWords = words.filter(w => w.Word_norm !== '').map(w => w.Word_norm);
   const relatedWords = words.flatMap(w => w.Related_List_norm).filter(w => w !== '');
   const allWords = [...new Set([...mainWords, ...relatedWords])];
 
   const fileDateMatch = fileName.match(/\d{2}-\d{2}-\d{4}/);
   const fileDate = fileDateMatch ? fileDateMatch[0] : '(unknown)';
+
+  // Complete
+  onProgress?.('Complete!', 100);
 
   return {
     words,

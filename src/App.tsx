@@ -7,7 +7,7 @@ const GlobalStyle = createGlobalStyle`
   * {
     box-sizing: border-box;
   }
-  
+
   body {
     margin: 0;
     padding: 0;
@@ -15,23 +15,49 @@ const GlobalStyle = createGlobalStyle`
     background-color: #f5f7fa;
     color: #333;
   }
-  
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     background: #f1f1f1;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 4px;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
+  }
+
+  .comment-header {
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  .comment-bullet {
+    margin-left: 15px;
+    font-style: italic;
+    font-size: 0.9em;
+    color: #555;
+  }
+
+  @media (max-width: 600px) {
+    .nav-tabs > li > a {
+      font-size: 13px;
+      padding: 4px 8px !important;
+    }
+    .related-link {
+      font-size: 12px;
+      padding: 1px 3px;
+    }
+    .bullet-list {
+      margin-left: 10px;
+    }
   }
 `;
 
@@ -48,6 +74,10 @@ const Header = styled.header`
   padding: 16px 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 100;
+
+  @media (max-width: 768px) {
+    padding: 12px 16px;
+  }
 `;
 
 const Title = styled.h1`
@@ -57,12 +87,20 @@ const Title = styled.h1`
   display: flex;
   align-items: center;
   gap: 10px;
+
+  @media (max-width: 768px) {
+    font-size: 1.2rem;
+  }
 `;
 
 const MainContent = styled.div`
   display: flex;
   flex: 1;
   overflow: hidden;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
 `;
 
 const Sidebar = styled.aside`
@@ -74,6 +112,14 @@ const Sidebar = styled.aside`
   display: flex;
   flex-direction: column;
   gap: 16px;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    max-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e1e4e8;
+    max-height: 40vh;
+  }
 `;
 
 const MainPanel = styled.main`
@@ -81,6 +127,10 @@ const MainPanel = styled.main`
   padding: 24px;
   overflow-y: auto;
   background: #fafbfc;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
 `;
 
 const UploadSection = styled.div`
@@ -535,8 +585,12 @@ const App: React.FC = () => {
   const loadFile = useCallback(async (content: string, fileName: string, uploaded: boolean = false) => {
     try {
       setStatus({ type: 'loading', message: 'Processing file...' });
-      
-      const parsed = parseHtmlFile(content, fileName);
+
+      const parsed = parseHtmlFile(content, fileName, {
+        onProgress: (stage, percent) => {
+          setStatus({ type: 'loading', message: `${stage} (${percent}%)` });
+        }
+      });
       setVocabData(parsed);
       
       const mainNorm: string[] = parsed.words.filter(w => w.Word_norm !== '').map(w => w.Word_norm);

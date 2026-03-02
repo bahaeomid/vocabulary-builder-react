@@ -27,3 +27,7 @@ export type ProcessStatus = {
   type: 'loading' | 'success' | 'error';
   message: string;
 };
+
+export interface ProgressCallback {
+  (stage: string, percent: number): void;
+}
