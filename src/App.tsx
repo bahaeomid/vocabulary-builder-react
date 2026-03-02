@@ -639,12 +639,12 @@ const App: React.FC = () => {
     if (!autoLoadAttempted) {
       setAutoLoadAttempted(true);
 
-      // Try loading test sample first, then fall back to original file
-      fetch('/data/vocabulary-test-sample.html')
+      // Load the full vocabulary file
+      fetch('/data/Vocabulary Builder 08-12-2025.html')
         .then(response => {
           if (!response.ok) {
-            // Fall back to original file
-            return fetch('/data/Vocabulary Builder 08-12-2025.html');
+            // Fall back to test sample
+            return fetch('/data/vocabulary-test-sample.html');
           }
           return response;
         })
@@ -655,7 +655,7 @@ const App: React.FC = () => {
           return response.text();
         })
         .then(html => {
-          loadFile(html, 'vocabulary-test-sample.html', false);
+          loadFile(html, 'Vocabulary Builder 08-12-2025.html', false);
         })
         .catch(() => {
           setStatus({
