@@ -638,8 +638,16 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!autoLoadAttempted) {
       setAutoLoadAttempted(true);
-      
-      fetch('/data/Vocabulary Builder 08-12-2025.html')
+
+      // Try loading test sample first, then fall back to original file
+      fetch('/data/vocabulary-test-sample.html')
+        .then(response => {
+          if (!response.ok) {
+            // Fall back to original file
+            return fetch('/data/Vocabulary Builder 08-12-2025.html');
+          }
+          return response;
+        })
         .then(response => {
           if (!response.ok) {
             throw new Error('No local HTML file found. Please upload one!');
@@ -647,7 +655,7 @@ const App: React.FC = () => {
           return response.text();
         })
         .then(html => {
-          loadFile(html, 'Vocabulary Builder 08-12-2025.html', false);
+          loadFile(html, 'vocabulary-test-sample.html', false);
         })
         .catch(() => {
           setStatus({
