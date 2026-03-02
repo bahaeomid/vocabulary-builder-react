@@ -133,10 +133,10 @@ const parseVocabularyEntries = (doc: Document): RawVocabEntry[] => {
 
   // Try multiple selectors for different HTML structures
   const selectors = [
+    'ul.toggle > li > details',
     'div.indented ul.toggle li details',
     '.indented ul.toggle li.details',
     '.indented .toggle li',
-    'details .toggle li',
     '.toggle li details'
   ];
 
@@ -145,21 +145,26 @@ const parseVocabularyEntries = (doc: Document): RawVocabEntry[] => {
     if (elements.length === 0) continue;
 
     elements.forEach((element) => {
-      const category = findPrecedingH2(element);
-      const summary = element.querySelector('summary');
+      // For 'details' elements, use them directly. For 'li' elements, find child details
+      const detailsEl = element.tagName === 'DETAILS' ? element : element.querySelector('details');
+      if (!detailsEl) return;
+
+      const category = findPrecedingH2(detailsEl);
+      const summary = detailsEl.querySelector('summary');
       const wordOrig = summary ? summary.textContent?.trim() || '' : '';
 
       if (!wordOrig) return;
 
-      // Parse bullet points
+      // Parse bullet points - look for ul.bulleted-list or any ul
       const bullets: string[] = [];
-      const ulElement = element.querySelector('ul');
-      if (ulElement) {
-        ulElement.querySelectorAll(':scope > li').forEach((li: Element) => {
+      const bulletLists = detailsEl.querySelectorAll('ul.bulleted-list, ul');
+      bulletLists.forEach((ul) => {
+        // Only get direct children li elements
+        ul.querySelectorAll(':scope > li').forEach((li: Element) => {
           const liText = li.textContent?.trim() || '';
           if (liText) bullets.push(liText);
         });
-      }
+      });
 
       // Categorize bullets
       const defs: string[] = [];
