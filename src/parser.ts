@@ -146,13 +146,12 @@ interface RawVocabEntry {
 const parseVocabularyEntries = (doc: Document): RawVocabEntry[] => {
   const entries: RawVocabEntry[] = [];
 
-  // Try multiple selectors for different HTML structures
+  // Match R's XPath: //details//div[@class='indented']//ul[@class='toggle']/li/details
+  // This specifically targets word-level details inside category-level details
   const selectors = [
-    'ul.toggle > li > details',
-    'div.indented ul.toggle li details',
-    '.indented ul.toggle li.details',
-    '.indented .toggle li',
-    '.toggle li details'
+    'details div.indented ul.toggle > li > details',
+    'div.indented ul.toggle > li > details',
+    'ul.toggle > li > details'
   ];
 
   for (const selector of selectors) {
@@ -160,7 +159,7 @@ const parseVocabularyEntries = (doc: Document): RawVocabEntry[] => {
     if (elements.length === 0) continue;
 
     elements.forEach((element) => {
-      // For 'details' elements, use them directly. For 'li' elements, find child details
+      // Element should be a details element
       const detailsEl = element.tagName === 'DETAILS' ? element : element.querySelector('details');
       if (!detailsEl) return;
 
@@ -320,10 +319,12 @@ const matchCommentsToVocab = (
 ): { unmatchedHighlights: string[] } => {
   const unmatchedHighlights: string[] = [];
 
-  // Pre-compute normalized versions for matching
+  // Pre-compute normalized versions for matching (matching R's approach)
   const wordNorms = vocabEntries.map(w => w.Word_norm);
   const defNorms = vocabEntries.map(w => normalizeText(w.Definition));
   const exNorms = vocabEntries.map(w => normalizeText(w.Example));
+  // R app concatenates related words into a single string for regex matching
+  const relNorms = vocabEntries.map(w => normalizeText(w.Related_Words_orig.join(' ')));
 
   // Process each comment
   for (const comment of rawComments) {
@@ -332,42 +333,29 @@ const matchCommentsToVocab = (
 
     if (!highlightLower) continue;
 
-    // TIER 1: Exact match with word_norm
-    const exactMatches: number[] = [];
+    // TIER 1: Exact match with word_norm OR match in concatenated related words
+    // R uses: word_norm == highlight_lower | stri_detect_regex(rel_norm, "\\bhighlight\\b")
+    const matches: number[] = [];
+    const regex = new RegExp(`\\b${escapeRegex(highlightLower)}\\b`, 'i');
+
     for (let i = 0; i < vocabEntries.length; i++) {
-      if (wordNorms[i] === highlightLower) {
-        exactMatches.push(i);
+      if (wordNorms[i] === highlightLower || regex.test(relNorms[i])) {
+        matches.push(i);
       }
     }
 
-    // TIER 2: Match in related words
-    const relatedMatches: number[] = [];
-    if (exactMatches.length === 0) {
+    // TIER 2: Match in definition or example (if no matches from tier 1)
+    const defExMatches: number[] = [];
+    if (matches.length === 0) {
       for (let i = 0; i < vocabEntries.length; i++) {
-        const relatedList = vocabEntries[i].Related_List_norm;
-        for (const relatedWord of relatedList) {
-          if (relatedWord === highlightLower) {
-            relatedMatches.push(i);
-            break;
-          }
+        if (regex.test(defNorms[i]) || regex.test(exNorms[i])) {
+          defExMatches.push(i);
         }
       }
     }
 
-// TIER 3: Match in definition or example
-  const defExMatches: number[] = [];
-  if (exactMatches.length === 0 && relatedMatches.length === 0) {
-    const regex = new RegExp(`\\b${escapeRegex(highlightLower)}\\b`, 'i');
-
-    for (let i = 0; i < vocabEntries.length; i++) {
-      if (regex.test(defNorms[i]) || regex.test(exNorms[i])) {
-        defExMatches.push(i);
-      }
-    }
-  }
-
     // Combine all matches
-    const allMatches = [...new Set([...exactMatches, ...relatedMatches, ...defExMatches])];
+    const allMatches = [...new Set([...matches, ...defExMatches])];
 
     // Append comment to matched entries
     if (allMatches.length > 0) {
