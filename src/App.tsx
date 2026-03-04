@@ -61,6 +61,52 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
+const SearchableSelect = styled.div`
+  position: relative;
+  flex: 1;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+`;
+
+const SearchDropdown = styled.div<{ $visible: boolean }>`
+  display: ${props => props.$visible ? 'block' : 'none'};
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+`;
+
+const SearchOption = styled.div<{ $selected: boolean }>`
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  background: ${props => props.$selected ? '#f0f4ff' : 'white'};
+  
+  &:hover {
+    background: #f0f4ff;
+  }
+`;
+
 const AppContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -230,24 +276,6 @@ const NavButton = styled.button`
     background: #c9cdd4;
     cursor: not-allowed;
   }
-`;
-
-const WordInput = styled.input`
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  
-  &:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  }
-`;
-
-const WordDropdown = styled(Select)`
-  flex: 1;
 `;
 
 const ProgressBarContainer = styled.div`
@@ -524,52 +552,37 @@ const EmptyIcon = styled.div`
   opacity: 0.5;
 `;
 
-const StatusMessage = styled.div<{ $type: 'success' | 'error' | 'loading' }>`
+  const StatusMessage = styled.div<{ $type: 'success' | 'error' | 'loading' }>`
   padding: 10px 12px;
   border-radius: 6px;
   font-size: 0.9rem;
-  
+
   ${props => props.$type === 'success' && `
     background: #e8f5e9;
     border: 1px solid #c8e6c9;
     color: #2e7d32;
   `}
-  
+
   ${props => props.$type === 'error' && `
     background: #ffebee;
     border: 1px solid #ffcdd2;
     color: #c62828;
   `}
-  
+
   ${props => props.$type === 'loading' && `
     background: #e3f2fd;
     border: 1px solid #bbdefb;
     color: #1565c0;
   `}
-`;
-
-const SearchModeToggle = styled.button<{ $active: boolean }>`
-  padding: 8px 12px;
-  border: 1px solid ${props => props.$active ? '#667eea' : '#dee2e6'};
-  background: ${props => props.$active ? '#667eea' : 'white'};
-  color: ${props => props.$active ? 'white' : '#495057'};
-  border-radius: 6px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:hover {
-    border-color: #667eea;
-  }
-`;
+  `;
 
 const App: React.FC = () => {
   const [vocabData, setVocabData] = useState<ParsedVocabData | null>(null);
   const [selectedHighCat, setSelectedHighCat] = useState<string>('All');
   const [selectedLowCat, setSelectedLowCat] = useState<string>('All');
   const [selectedWord, setSelectedWord] = useState<string>('');
-  const [wordInput, setWordInput] = useState<string>('');
-  const [searchMode, setSearchMode] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showDropdown, setShowDropdown] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [status, setStatus] = useState<ProcessStatus>({ type: 'loading', message: '' });
   const [showUnmatched, setShowUnmatched] = useState<boolean>(false);
@@ -579,10 +592,10 @@ const App: React.FC = () => {
   const [isActive, setIsActive] = useState<boolean>(false);
   const [autoLoadAttempted, setAutoLoadAttempted] = useState<boolean>(false);
   const [copiedWords, setCopiedWords] = useState<Record<string, boolean>>({});
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const loadFile = useCallback(async (content: string, fileName: string, uploaded: boolean = false) => {
+
+  const loadFile = useCallback(async (content: string, fileName: string) => {
     try {
       setStatus({ type: 'loading', message: 'Processing file...' });
 
@@ -597,35 +610,15 @@ const App: React.FC = () => {
       const relatedNorm: string[] = parsed.words.flatMap(w => w.Related_List_norm).filter(w => w !== '');
       const allWords: string[] = [...new Set([...mainNorm, ...relatedNorm])];
       
-      if (allWords.length > 0) {
-        setSelectedWord(allWords[0]);
-        setWordInput(allWords[0]);
-        setCurrentWordIndex(1);
-      } else {
-        setSelectedWord('');
-        setWordInput('');
-        setCurrentWordIndex(0);
-      }
+        if (allWords.length > 0) {
+          setSelectedWord(allWords[0]);
+          setCurrentWordIndex(1);
+        } else {
+          setSelectedWord('');
+          setCurrentWordIndex(0);
+        }
       
-      const fileDateLine = uploaded 
-        ? '<b>File Download Date:</b> Today' 
-        : `<b>File Download Date:</b> ${parsed.fileDate}`;
-      
-      const statusHtml = `
-        <div>
-          <div style='cursor:pointer; font-weight:600;' onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none';">
-            ✅ Click to View File Details
-          </div>
-          <div style='display:none; padding-top:8px;'>
-            ${fileDateLine}<br><br>
-            <b>${parsed.stats.uniqueMainWords}</b> unique main words.<br>
-            <b>${parsed.stats.uniqueRelatedWords}</b> unique related words.<br>
-            <b>${parsed.stats.totalUniqueWords}</b> total unique words
-          </div>
-        </div>
-      `;
-      
-      setStatus({ type: 'success', message: statusHtml });
+      setStatus({ type: 'success', message: '✅ File loaded successfully!' });
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'Unknown error';
       setStatus({
@@ -655,7 +648,7 @@ const App: React.FC = () => {
           return response.text();
         })
         .then(html => {
-          loadFile(html, 'Vocabulary Builder 08-12-2025.html', false);
+          loadFile(html, 'Vocabulary Builder 08-12-2025.html');
         })
         .catch(() => {
           setStatus({
@@ -708,6 +701,19 @@ const App: React.FC = () => {
     };
   }, []);
   
+  // Reset selectedWord if it's no longer in the filtered list
+  useEffect(() => {
+    if (!vocabData || !selectedWord) return;
+    
+    const filteredWords = getFilteredAllWords();
+    if (filteredWords.length > 0 && !filteredWords.includes(selectedWord)) {
+      // Current word is not in filtered list, switch to first available
+      setSelectedWord(filteredWords[0]);
+      setCurrentWordIndex(1);
+      setActiveTab(0);
+    }
+  }, [vocabData, selectedHighCat, selectedLowCat]);
+  
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -715,7 +721,7 @@ const App: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      loadFile(content, file.name, true);
+      loadFile(content, file.name);
     };
     reader.readAsText(file);
   };
@@ -779,18 +785,17 @@ const App: React.FC = () => {
       newIdx = idx + 1;
     }
     
-    setSelectedWord(words[newIdx]);
-    setWordInput(words[newIdx]);
+  setSelectedWord(words[newIdx]);
     setCurrentWordIndex(newIdx + 1);
   };
-  
+
   const handlePrevWord = () => {
     const words = getFilteredAllWords();
     if (words.length === 0) return;
-    
+
     const idx = words.indexOf(selectedWord);
     let newIdx;
-    
+
     if (idx === -1) {
       // If selected word is not in the filtered list, go to last word
       newIdx = words.length - 1;
@@ -801,57 +806,11 @@ const App: React.FC = () => {
       // Go to previous word
       newIdx = idx - 1;
     }
-    
+
     setSelectedWord(words[newIdx]);
-    setWordInput(words[newIdx]);
     setCurrentWordIndex(newIdx + 1);
   };
-  
-  const handleWordSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const word = e.target.value;
-    setSelectedWord(word);
-    setWordInput(word);
-    const words = getFilteredAllWords();
-    const idx = words.indexOf(word);
-    setCurrentWordIndex(idx >= 0 ? idx + 1 : 1);
-  };
-  
-  const handleWordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setWordInput(e.target.value);
-    setSearchMode(true);
-  };
-  
-  const handleWordInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const allWords = getFilteredAllWords();
-      
-      // Try exact match first (case-insensitive)
-      const matchingWord = allWords.find(w => w.toLowerCase() === wordInput.toLowerCase());
-      
-      if (matchingWord) {
-        setSelectedWord(matchingWord);
-        const idx = allWords.indexOf(matchingWord);
-        setCurrentWordIndex(idx >= 0 ? idx + 1 : 1);
-        setSearchMode(false);
-        return;
-      }
-      
-      // If no exact match, try close matches
-      const closeMatches = findCloseMatches(wordInput, allWords);
-      if (closeMatches.length > 0) {
-        setSelectedWord(closeMatches[0]);
-        setWordInput(closeMatches[0]);
-        const idx = allWords.indexOf(closeMatches[0]);
-        setCurrentWordIndex(idx >= 0 ? idx + 1 : 1);
-        setSearchMode(false);
-        return;
-      }
-      
-      // If no matches found, stay in search mode
-      setSearchMode(true);
-    }
-  };
-  
+
   const handleCopyWord = async (word: string) => {
     try {
       await navigator.clipboard.writeText(word);
@@ -885,26 +844,33 @@ const App: React.FC = () => {
       w.Word_norm === selectedWord || w.Related_List_norm.includes(selectedWord)
     );
   };
-  
+
   const matches = getWordMatches();
   const allFilteredWords = getFilteredAllWords();
+  
+  // Filter options based on search term
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm.trim()) return allFilteredWords;
+    const term = searchTerm.toLowerCase();
+    return allFilteredWords.filter((word: string) => {
+      const orig = vocabData?.words.find(w => w.Word_norm === word)?.Word_orig || word;
+      return word.toLowerCase().includes(term) || orig.toLowerCase().includes(term);
+    });
+  }, [searchTerm, allFilteredWords, vocabData]);
+  
+  // Reset activeTab to 0 when matches change (like when selecting a new word)
+  useEffect(() => {
+  setActiveTab(0);
+  }, [selectedWord]);
+
   const progressPercentage = allFilteredWords.length > 0 && currentWordIndex > 0
-    ? Math.round((currentWordIndex / allFilteredWords.length) * 100) 
+    ? Math.round((currentWordIndex / allFilteredWords.length) * 100)
     : 0;
   
   const isSingleWord = (w: string): boolean => {
     return !/[,\/]|\s+vs\.?|\s+and\s+|&|\(|\)/.test(w);
   };
-  
-  const filteredDropdownOptions = useMemo(() => {
-    if (!searchMode || !wordInput) return allFilteredWords;
-    if (!wordInput.trim()) return allFilteredWords;
-    
-    return allFilteredWords.filter(w => 
-      w.toLowerCase().includes(wordInput.toLowerCase())
-    );
-  }, [allFilteredWords, wordInput, searchMode]);
-  
+
   const renderWordInfo = () => {
     if (!vocabData || !selectedWord) {
       return (
@@ -934,16 +900,15 @@ const App: React.FC = () => {
           {closeMatches.length > 0 && (
             <div style={{ marginBottom: '12px' }}>
               Potential matches:{' '}
-              {closeMatches.map(match => (
-                <SuggestionButton key={match} onClick={() => {
-                  setSelectedWord(match);
-                  setWordInput(match);
-                  const idx = allFilteredWords.indexOf(match);
-                  if (idx >= 0) setCurrentWordIndex(idx + 1);
-                }}>
-                  {match}
-                </SuggestionButton>
-              ))}
+                {closeMatches.map(match => (
+                    <SuggestionButton key={match} onClick={() => {
+                      setSelectedWord(match);
+                      const idx = allFilteredWords.indexOf(match);
+                      if (idx >= 0) setCurrentWordIndex(idx + 1);
+                    }}>
+                      {match}
+                    </SuggestionButton>
+                  ))}
             </div>
           )}
           
@@ -1058,19 +1023,18 @@ const App: React.FC = () => {
                     {w}
                   </a>
                   <IconButton
-                    onClick={() => {
-                      // Navigate to related word (use normalized version for lookup)
-                      const allWords = getFilteredAllWords();
-                      if (allWords.includes(normalizedW)) {
-                        setSelectedWord(normalizedW);
-                        setWordInput(normalizedW);
-                        const idx = allWords.indexOf(normalizedW);
-                        setCurrentWordIndex(idx + 1);
-                        setActiveTab(0); // Reset to first tab
-                      }
-                      // Also copy the word
-                      handleCopyWord(w);
-                    }}
+                      onClick={() => {
+                        // Navigate to related word (use normalized version for lookup)
+                        const allWords = getFilteredAllWords();
+                        if (allWords.includes(normalizedW)) {
+                          setSelectedWord(normalizedW);
+                          const idx = allWords.indexOf(normalizedW);
+                          setCurrentWordIndex(idx + 1);
+                          setActiveTab(0); // Reset to first tab
+                        }
+                        // Also copy the word
+                        handleCopyWord(w);
+                      }}
                     title="Copy & Navigate"
                     $copied={copiedWords[w]}
                   >
@@ -1083,28 +1047,18 @@ const App: React.FC = () => {
                  </Section>
                  )}
                 
-{(match.My_Commentary.length > 0 || (match.Definition && match.Definition !== 'User comment')) && (
-                   <CommentSection>
-                     <CommentHeader onClick={() => toggleComments(match.id)}>
-                       📝 {match.My_Commentary.length > 0 ? 'My Commentary' : 'User Comment'} {showComments[match.id] ? '▼' : '▶'}
-                     </CommentHeader>
-                     <CommentContent $visible={showComments[match.id]}>
-                       {match.My_Commentary.length > 0 ? (
-                         <div dangerouslySetInnerHTML={{ 
-                           __html: match.My_Commentary.join('') 
-                         }} />
-                       ) : (
-                         <div>
-                           {match.Definition.split('\n').map((line, i) => (
-                             <p key={i} style={{ marginBottom: '8px', lineHeight: '1.5' }}>
-                               {line}
-                             </p>
-                           ))}
-                         </div>
-                       )}
-                     </CommentContent>
-                   </CommentSection>
-                 )}
+                {match.My_Commentary.length > 0 && (
+                    <CommentSection>
+                      <CommentHeader onClick={() => toggleComments(match.id)}>
+                        📝 My Commentary {showComments[match.id] ? '▼' : '▶'}
+                      </CommentHeader>
+                      <CommentContent $visible={showComments[match.id] || false}>
+                        <div dangerouslySetInnerHTML={{ 
+                          __html: match.My_Commentary.join('') 
+                        }} />
+                      </CommentContent>
+                    </CommentSection>
+                  )}
               </div>
             );
           })}
@@ -1176,46 +1130,69 @@ const App: React.FC = () => {
                   </Select>
                 </div>
                 
-                <div>
-                  <Label>🔍 Search Word</Label>
-                  <WordSelectorContainer>
-                    <NavButton onClick={handlePrevWord} disabled={allFilteredWords.length === 0}>
-                      ◀
-                    </NavButton>
-                    {searchMode ? (
-                      <WordInput 
-                        type="text"
-                        value={wordInput}
-                        onChange={handleWordInputChange}
-                        onKeyDown={handleWordInputKeyDown}
-                        placeholder="Type and press Enter..."
-                        autoFocus
-                      />
-                    ) : (
-                      <WordDropdown 
-                        value={selectedWord} 
-                        onChange={handleWordSelect}
-                      >
-                        {filteredDropdownOptions.map(word => {
-                          const orig = vocabData.words.find(w => w.Word_norm === word)?.Word_orig || word;
-                          return (
-                            <option key={word} value={word}>{orig}</option>
-                          );
-                        })}
-                      </WordDropdown>
-                    )}
-                    <NavButton onClick={handleNextWord} disabled={allFilteredWords.length === 0}>
-                      ▶
-                    </NavButton>
-                  </WordSelectorContainer>
-                  <SearchModeToggle 
-                    $active={searchMode}
-                    onClick={() => setSearchMode(!searchMode)}
-                    style={{ marginTop: '8px', width: '100%' }}
-                  >
-                    {searchMode ? 'Switch to Dropdown' : 'Switch to Search'}
-                  </SearchModeToggle>
-                </div>
+                  <div>
+                    <Label>🔍 Search Word</Label>
+                    <WordSelectorContainer>
+                      <NavButton onClick={handlePrevWord} disabled={allFilteredWords.length === 0}>
+                        ◀
+                      </NavButton>
+                      <SearchableSelect>
+                        <SearchInput
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setShowDropdown(true);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const trimmedTerm = searchTerm.trim();
+                              if (trimmedTerm) {
+                                // Try to find exact match first
+                                const exactMatch = allFilteredWords.find(w => w.toLowerCase() === trimmedTerm.toLowerCase());
+                                if (exactMatch) {
+                                  setSelectedWord(exactMatch);
+                                  const idx = allFilteredWords.indexOf(exactMatch);
+                                  setCurrentWordIndex(idx >= 0 ? idx + 1 : 1);
+                                  setShowDropdown(false);
+                                } else {
+                                  // Set to the search term - will show NoMatchCard
+                                  setSelectedWord(trimmedTerm);
+                                  setShowDropdown(false);
+                                }
+                              }
+                            }
+                          }}
+                          onFocus={() => setShowDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                          placeholder="Search for a word..."
+                        />
+                        <SearchDropdown $visible={showDropdown && filteredOptions.length > 0}>
+                          {filteredOptions.slice(0, 50).map((word: string) => {
+                            const orig = vocabData.words.find(w => w.Word_norm === word)?.Word_orig || word;
+                            return (
+                              <SearchOption
+                                key={word}
+                                $selected={word === selectedWord}
+                                onClick={() => {
+                                  setSelectedWord(word);
+                                  setSearchTerm(orig);
+                                  const idx = allFilteredWords.indexOf(word);
+                                  setCurrentWordIndex(idx >= 0 ? idx + 1 : 1);
+                                  setShowDropdown(false);
+                                }}
+                              >
+                                {orig}
+                              </SearchOption>
+                            );
+                          })}
+                        </SearchDropdown>
+                      </SearchableSelect>
+                      <NavButton onClick={handleNextWord} disabled={allFilteredWords.length === 0}>
+                        ▶
+                      </NavButton>
+                    </WordSelectorContainer>
+                  </div>
                 
                 {selectedWord && allFilteredWords.length > 0 && (
                   <div>
@@ -1235,14 +1212,35 @@ const App: React.FC = () => {
             
             <StatusMessage 
               $type={status.type}
-              dangerouslySetInnerHTML={{ __html: status.message }}
-              onClick={() => {
-                if (status.type === 'success') {
-                  setShowFileDetails(!showFileDetails);
-                }
-              }}
               style={{ cursor: status.type === 'success' ? 'pointer' : 'default' }}
-            />
+            >
+              {status.type === 'success' ? (
+                <>
+                  <div 
+                    onClick={() => setShowFileDetails(!showFileDetails)}
+                    style={{ cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    ✅ Click to View File Details
+                  </div>
+                  {showFileDetails && (
+                    <div style={{ paddingTop: '8px' }}>
+                      {vocabData && (
+                        <>
+                          <div style={{ marginBottom: '4px' }}>
+                            <b>File Date:</b> {vocabData.fileDate}
+                          </div>
+                          <div><b>{vocabData.stats.uniqueMainWords}</b> unique main words.</div>
+                          <div><b>{vocabData.stats.uniqueRelatedWords}</b> unique related words.</div>
+                          <div><b>{vocabData.stats.totalUniqueWords}</b> total unique words</div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <span dangerouslySetInnerHTML={{ __html: status.message }} />
+              )}
+            </StatusMessage>
             
             {vocabData && vocabData.unmatchedHighlights.length > 0 && (
               <UnmatchedWarning 

@@ -1,6 +1,6 @@
 # Vocabulary Builder - Project Status & Handover
 
-**Last Updated**: March 3, 2026  
+**Last Updated**: March 4, 2026  
 **Project Location**: `C:\Users\AI_Lab\Desktop\AI Projects\Vocab_Orig`
 
 ---
@@ -146,6 +146,23 @@ npm run preview     # Preview build
 ---
 
 ## 🔍 Known Issues & Gaps
+
+### Bugs to Fix (Priority)
+
+1. **Category/Subcategory Dropdowns Empty**
+   - **ROOT CAUSE**: The full HTML file (`Vocabulary Builder 08-12-2025.html`) only contains inline comments, NOT vocabulary entries
+   - Need to re-export from Notion with complete vocabulary list
+
+2. **User Comment Section Not Showing**
+   - ✅ Fixed: Parser now correctly finds all `.indented` divs (was only finding first one)
+   - ✅ Fixed: Comment section now shows when actual commentary exists
+
+3. **File Details Stats Not Displaying**
+   - ✅ Fixed: Now uses React state instead of inline onclick
+
+4. **Search Feature Improvements**
+   - ✅ Fixed: Shows dynamic dropdown suggestions as you type
+   - ✅ Fixed: When word not found, shows close matches page with suggestions
 
 ### Potential Future Work
 

@@ -97,6 +97,7 @@ export const findCloseMatches = (query: string, wordList: string[]): string[] =>
 const findPrecedingH2 = (element: Element): string => {
   let current: Element | null = element;
 
+  // First, check previous siblings of each parent
   while (current) {
     // Check previous siblings
     let prev: Element | null = current.previousElementSibling;
@@ -104,12 +105,26 @@ const findPrecedingH2 = (element: Element): string => {
       if (prev.tagName === 'H2') {
         return prev.textContent?.trim() || '';
       }
+      // Check for h2 nested inside
+      const h2 = prev.querySelector(':scope > h2');
+      if (h2) {
+        return h2.textContent?.trim() || '';
+      }
       prev = prev.previousElementSibling;
     }
     // Move up to parent
     current = current.parentElement;
   }
-  return '';
+  
+  // Fallback: search the entire document for h2 elements before this element
+  const allH2s = document.querySelectorAll('h2');
+  let lastH2 = '';
+  for (const h2 of Array.from(allH2s)) {
+    if (h2.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_PRECEDING) {
+      lastH2 = h2.textContent?.trim() || '';
+    }
+  }
+  return lastH2;
 };
 
 const isSingleWord = (w: string): boolean => {
@@ -232,58 +247,57 @@ const parseInlineComments = (doc: Document): RawComment[] => {
   }
 
   // Find all paragraphs with "Block text" and <mark> elements
-  // The structure can be: .indented > p OR nested deeper
-  const indentedDiv = inlineCommentsSection.querySelector('.indented');
-  if (!indentedDiv) {
-    return comments;
-  }
+  // There can be multiple .indented divs, each containing one comment block
+  const indentedDivs = inlineCommentsSection.querySelectorAll('.indented');
+  
+  indentedDivs.forEach((indentedDiv) => {
+    // Find the paragraph with Block text
+    const allParagraphs = indentedDiv.querySelectorAll('p');
+    
+    allParagraphs.forEach((pElement) => {
+      // Check if this paragraph contains "Block text" in a <b> element
+      const boldElement = pElement.querySelector('b');
+      if (!boldElement || !boldElement.textContent?.includes('Block text')) return;
 
-  // Get all paragraphs that contain mark elements
-  const allParagraphs = indentedDiv.querySelectorAll('p');
+      // Extract the highlighted word from <mark> element
+      const markElement = pElement.querySelector('mark');
+      const highlightWord = markElement?.textContent?.trim() || '';
+      if (!highlightWord) return;
 
-  allParagraphs.forEach((pElement) => {
-    // Check if this paragraph contains "Block text" in a <b> element
-    const boldElement = pElement.querySelector('b');
-    if (!boldElement || !boldElement.textContent?.includes('Block text')) return;
+      // Find the next sibling <ul> element to get comment content
+      // Comments are in the <ul class="toggle"> that follows the <p>
+      let commentContainer: Element | null = pElement.nextElementSibling;
+      while (commentContainer && commentContainer.tagName !== 'UL') {
+        commentContainer = commentContainer.nextElementSibling;
+      }
 
-    // Extract the highlighted word from <mark> element
-    const markElement = pElement.querySelector('mark');
-    const highlightWord = markElement?.textContent?.trim() || '';
-    if (!highlightWord) return;
+      const commentLines: string[] = [];
 
-    // Find the next sibling <ul> element to get comment content
-    // Comments are in the <ul class="toggle"> that follows the <p>
-    let commentContainer: Element | null = pElement.nextElementSibling;
-    while (commentContainer && commentContainer.tagName !== 'UL') {
-      commentContainer = commentContainer.nextElementSibling;
-    }
+      if (commentContainer) {
+        // Get all <div> elements within <li> elements
+        commentContainer.querySelectorAll('li > div').forEach((div) => {
+          // Skip divs that contain user info
+          if (div.querySelector('.user')) return;
 
-    const commentLines: string[] = [];
+          // Get inner HTML and process it
+          let innerHtml = div.innerHTML || '';
 
-    if (commentContainer) {
-      // Get all <div> elements within <li> elements
-      commentContainer.querySelectorAll('li > div').forEach((div) => {
-        // Skip divs that contain user info
-        if (div.querySelector('.user')) return;
+          // Split on <br> tags
+          innerHtml = innerHtml.replace(/<br\s*\/?>/gi, '\n');
 
-        // Get inner HTML and process it
-        let innerHtml = div.innerHTML || '';
+          // Strip remaining HTML tags
+          innerHtml = innerHtml.replace(/<[^>]+>/g, '');
 
-        // Split on <br> tags
-        innerHtml = innerHtml.replace(/<br\s*\/?>/gi, '\n');
+          // Split into lines and clean
+          const lines = innerHtml.split('\n').map(l => l.trim()).filter(l => l);
+          commentLines.push(...lines);
+        });
+      }
 
-        // Strip remaining HTML tags
-        innerHtml = innerHtml.replace(/<[^>]+>/g, '');
-
-        // Split into lines and clean
-        const lines = innerHtml.split('\n').map(l => l.trim()).filter(l => l);
-        commentLines.push(...lines);
+      comments.push({
+        highlightWord,
+        commentLines
       });
-    }
-
-    comments.push({
-      highlightWord,
-      commentLines
     });
   });
 
