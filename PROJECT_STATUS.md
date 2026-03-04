@@ -1,6 +1,6 @@
 # Vocabulary Builder - Project Status & Handover
 
-**Last Updated**: March 4, 2026  
+**Last Updated**: March 5, 2026
 **Project Location**: `C:\Users\AI_Lab\Desktop\AI Projects\Vocab_Orig`
 
 ---
@@ -19,7 +19,7 @@ This is a React/TypeScript rewrite of the original R Shiny Vocabulary Builder ap
 ### Phase 1: Critical Functionality (COMPLETED)
 - [x] Comment matching algorithm (3-tier matching)
   - Tier 1: Exact word match
-  - Tier 2: Related words match  
+  - Tier 2: Related words match
   - Tier 3: Definition/Example text match
 - [x] Levenshtein distance fuzzy matching
 - [x] Inline comments HTML parsing
@@ -34,10 +34,15 @@ This is a React/TypeScript rewrite of the original R Shiny Vocabulary Builder ap
 - [x] Mobile responsive styles (@media queries)
 - [x] Responsive sidebar and header
 
-### Bug Fixes (COMPLETED)
+### Phase 4: Bug Fixes & Feature Parity (COMPLETED)
 - [x] Fixed parser to handle Notion HTML export structure
 - [x] Fixed related words navigation (using normalized words)
 - [x] Fixed category/subcategory dropdowns
+- [x] Fixed blank page issue (tabs reset on word change)
+- [x] Fixed comment parsing (finds all `.indented` divs)
+- [x] Fixed file details toggle (React state instead of inline onclick)
+- [x] Searchable dropdown with Enter to add custom words (like R selectizeInput)
+- [x] NoMatchCard shows close matches + Merriam-Webster link
 
 ---
 
@@ -88,6 +93,24 @@ This is a React/TypeScript rewrite of the original R Shiny Vocabulary Builder ap
 </ul>
 ```
 
+### Inline Comments Structure
+```html
+<details>
+  <summary>Inline comments</summary>
+  <div class="indented">
+    <div>
+      <p><b>Block text</b>: <mark>word</mark></p>
+      <ul class="toggle">
+        <li><div>Comment line 1</div></li>
+      </ul>
+    </div>
+  </div>
+  <div class="indented">
+    ...another comment block...
+  </div>
+</details>
+```
+
 ### Selectors Used
 1. `ul.toggle > li > details` (primary)
 2. `div.indented ul.toggle li details` (fallback)
@@ -111,6 +134,7 @@ This is a React/TypeScript rewrite of the original R Shiny Vocabulary Builder ap
 
 ### Git History
 ```
+e7b2105 feat: searchable dropdown with Enter to add custom words, fix tab blank page, fix comment parsing
 d843bbb fix: load full vocabulary file by default, fallback to test sample
 7c0de42 fix: update parser for different Notion HTML export structure
 151fca1 fix: use normalized words for related word navigation
@@ -140,29 +164,23 @@ npm run test:run   # Single run
 ### Build for Production
 ```bash
 npm run build
-npm run preview     # Preview build
+npm run preview    # Preview build
 ```
 
 ---
 
 ## 🔍 Known Issues & Gaps
 
-### Bugs to Fix (Priority)
+### Resolved Issues
+1. ~~Category/Subcategory Dropdowns Empty~~ - ROOT CAUSE: Full HTML file only contains inline comments, not vocabulary entries. Need to re-export from Notion.
+2. ~~User Comment Section Not Showing~~ - Fixed: Parser finds all `.indented` divs
+3. ~~File Details Stats Not Displaying~~ - Fixed: Uses React state
+4. ~~Search Feature~~ - Fixed: Searchable dropdown with Enter to add custom words
 
-1. **Category/Subcategory Dropdowns Empty**
-   - **ROOT CAUSE**: The full HTML file (`Vocabulary Builder 08-12-2025.html`) only contains inline comments, NOT vocabulary entries
-   - Need to re-export from Notion with complete vocabulary list
-
-2. **User Comment Section Not Showing**
-   - ✅ Fixed: Parser now correctly finds all `.indented` divs (was only finding first one)
-   - ✅ Fixed: Comment section now shows when actual commentary exists
-
-3. **File Details Stats Not Displaying**
-   - ✅ Fixed: Now uses React state instead of inline onclick
-
-4. **Search Feature Improvements**
-   - ✅ Fixed: Shows dynamic dropdown suggestions as you type
-   - ✅ Fixed: When word not found, shows close matches page with suggestions
+### Unmatched Comments Section
+- Shows words from inline comments that couldn't be matched to vocabulary entries
+- Located at bottom of left sidebar (collapsible)
+- Example: "verbatim, persiflage, opera" - these appear in comments but not in vocabulary list
 
 ### Potential Future Work
 
@@ -174,17 +192,21 @@ npm run preview     # Preview build
    - Optional debug panel showing parsing stages
    - Log comment matching results
 
-3. **Unmatched Highlights Panel**
-   - UI panel showing unmatched words from inline comments
-   - Currently tracked but not displayed prominently
-
-4. **Visual Comparison Testing**
+3. **Visual Comparison Testing**
    - Side-by-side comparison with original R Shiny app
    - Verify all features match exactly
 
 ---
 
 ## 📝 Key Implementation Notes
+
+### Search Functionality (Matches R Script)
+- Searchable input field (like R's `selectizeInput` with `create=TRUE`)
+- Type any word and press Enter
+- If exact match found → navigates to word
+- If not found → shows NoMatchCard with:
+  - Close matches as clickable buttons (using agrep-style 20% distance)
+  - Merriam-Webster dictionary link
 
 ### Comment Matching Algorithm
 Located in `src/parser.ts`, function `matchCommentsToVocab()`:
@@ -200,6 +222,10 @@ Located in `src/parser.ts`, function `matchCommentsToVocab()`:
 ### Normalization
 - `normalizeForMatch()`: For word lookup (lowercase, remove punctuation, trim)
 - `normalizeText()`: For definition/example text matching
+
+### Tab Behavior
+- `activeTab` state resets to 0 when `selectedWord` changes
+- Prevents blank page when navigating between words
 
 ---
 
@@ -250,8 +276,8 @@ When starting a new session:
 2. Check `git log --oneline -10` for recent changes
 3. Run `npm run test:run` to verify tests pass
 4. Run `npm run dev` to start development server
-5. Test with full vocabulary file upload
+5. Test with vocabulary-test-sample.html upload (full file has no vocabulary entries)
 
 ---
 
-*Generated after completing Phase 1-3 and critical bug fixes.*
+*Last updated after completing searchable dropdown and bug fixes.*
