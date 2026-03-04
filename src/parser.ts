@@ -147,11 +147,15 @@ const parseVocabularyEntries = (doc: Document): RawVocabEntry[] => {
   const entries: RawVocabEntry[] = [];
 
   // Match R's XPath: //details//div[@class='indented']//ul[@class='toggle']/li/details
-  // This specifically targets word-level details inside category-level details
+  // But the actual HTML structure can have details directly inside ul.toggle (no li wrapper)
+  // So we need to handle both cases and filter out category-level details
   const selectors = [
-    'details div.indented ul.toggle > li > details',
+    'details div.indented ul.toggle > details',  // Word details inside category (no li wrapper)
+    'details div.indented ul.toggle > li > details',  // Word details inside li wrapper
+    'div.indented ul.toggle > details',  // Without outer category details
     'div.indented ul.toggle > li > details',
-    'ul.toggle > li > details'
+    'ul.toggle > details',  // Fallback
+    'ul.toggle > li > details'  // Fallback
   ];
 
   for (const selector of selectors) {
@@ -162,6 +166,10 @@ const parseVocabularyEntries = (doc: Document): RawVocabEntry[] => {
       // Element should be a details element
       const detailsEl = element.tagName === 'DETAILS' ? element : element.querySelector('details');
       if (!detailsEl) return;
+
+      // Skip category-level details (they don't have bulleted lists inside)
+      const hasBulletedList = detailsEl.querySelector('ul.bulleted-list, ul:not(.toggle)');
+      if (!hasBulletedList) return;
 
       const category = findPrecedingH2(detailsEl);
       const summary = detailsEl.querySelector('summary');
