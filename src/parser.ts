@@ -9,7 +9,8 @@ export const normalizeForMatch = (x: string): string => {
   let result = x.toLowerCase();
   result = result.replace(/[\u00A0\u200B\t\r\n]/g, ' ');
   result = result.replace(/\s+/g, ' ').trim();
-  result = result.replace(/^[.,!?;:'"()\[\]{}]+|[.,!?;:'"()\[\]{}]+$/g, '');
+  // Match R's [[:punct:]] which includes: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+  result = result.replace(/^[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]+|[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]+$/g, '');
   return result;
 };
 
@@ -146,81 +147,59 @@ interface RawVocabEntry {
 const parseVocabularyEntries = (doc: Document): RawVocabEntry[] => {
   const entries: RawVocabEntry[] = [];
 
-  // Match R's XPath: //details//div[@class='indented']//ul[@class='toggle']/li/details
-  // But the actual HTML structure can have details directly inside ul.toggle (no li wrapper)
-  // So we need to handle both cases and filter out category-level details
-  const selectors = [
-    'details div.indented ul.toggle > details',  // Word details inside category (no li wrapper)
-    'details div.indented ul.toggle > li > details',  // Word details inside li wrapper
-    'div.indented ul.toggle > details',  // Without outer category details
-    'div.indented ul.toggle > li > details',
-    'ul.toggle > details',  // Fallback
-    'ul.toggle > li > details'  // Fallback
-  ];
+  // EXACT MATCH of R's XPath: //details//div[@class='indented']//ul[@class='toggle']/li/details
+  // This finds: details -> div.indented -> ul.toggle -> li -> details (word entries)
+  const wordDetails = doc.querySelectorAll('details div.indented ul.toggle li details');
 
-  for (const selector of selectors) {
-    const elements = doc.querySelectorAll(selector);
-    if (elements.length === 0) continue;
+  wordDetails.forEach((detailsEl) => {
+    // Get category from preceding h2
+    const category = findPrecedingH2(detailsEl);
 
-    elements.forEach((element) => {
-      // Element should be a details element
-      const detailsEl = element.tagName === 'DETAILS' ? element : element.querySelector('details');
-      if (!detailsEl) return;
+    // Get word name from summary
+    const summary = detailsEl.querySelector('summary');
+    const wordOrig = summary ? summary.textContent?.trim() || '' : '';
 
-      // Skip category-level details (they don't have bulleted lists inside)
-      const hasBulletedList = detailsEl.querySelector('ul.bulleted-list, ul:not(.toggle)');
-      if (!hasBulletedList) return;
+    if (!wordOrig) return;
 
-      const category = findPrecedingH2(detailsEl);
-      const summary = detailsEl.querySelector('summary');
-      const wordOrig = summary ? summary.textContent?.trim() || '' : '';
-
-      if (!wordOrig) return;
-
-      // Parse bullet points - look for ul.bulleted-list or any ul
-      const bullets: string[] = [];
-      const bulletLists = detailsEl.querySelectorAll('ul.bulleted-list, ul');
-      bulletLists.forEach((ul) => {
-        // Only get direct children li elements
-        ul.querySelectorAll(':scope > li').forEach((li: Element) => {
-          const liText = li.textContent?.trim() || '';
-          if (liText) bullets.push(liText);
-        });
-      });
-
-      // Categorize bullets
-      const defs: string[] = [];
-      const exs: string[] = [];
-      const rels: string[] = [];
-
-  bullets.forEach(bullet => {
-    const lowerBullet = bullet.toLowerCase();
-    if (lowerBullet.startsWith('example')) {
-      exs.push(bullet.replace(/^example:?\s*/i, ''));
-    } else if (lowerBullet.includes('related') || lowerBullet.includes('variants')) {
-      rels.push(bullet.replace(/^variants?\s*&?\s*related\s*words:?\s*/i, ''));
-    } else {
-      defs.push(bullet);
-    }
+  // Get all bullet points: .//ul/li (any ul/li descendant, matching R's XPath)
+  const bullets: string[] = [];
+  detailsEl.querySelectorAll('ul li').forEach((li: Element) => {
+    const liText = li.textContent?.trim() || '';
+    if (liText) bullets.push(liText);
   });
+
+  // Categorize bullets - EXACT MATCH of R logic: str_starts(b, "Example") and str_starts(b, "Variants & Related Words")
+  const defs: string[] = [];
+  const exs: string[] = [];
+  const rels: string[] = [];
+
+  for (const b of bullets) {
+    if (b.startsWith('Example')) {
+      exs.push(b.replace(/^Example:?\s*/, ''));
+    } else if (b.startsWith('Variants & Related Words')) {
+      rels.push(b.replace(/^Variants & Related Words:?\s*/, ''));
+    } else {
+      defs.push(b);
+    }
+  }
 
   const definition = defs.join('\n');
   const example = exs.join('\n');
-  const relatedWordsOrig = rels.length > 0
-    ? rels.join(', ').split(',').map(s => s.trim()).filter(s => s)
-    : [];
 
-      entries.push({
-        category,
-        wordOrig,
-        definition,
-        example,
-        relatedWordsOrig
-      });
+  // EXACT MATCH of R: if(length(rels) == 0) character(0) else str_split(paste(rels, collapse = ", "), ",\\s*")[[1]]
+  let relatedWordsOrig: string[] = [];
+  if (rels.length > 0) {
+    relatedWordsOrig = rels.join(', ').split(/,\s*/);
+    }
+
+    entries.push({
+      category,
+      wordOrig,
+      definition,
+      example,
+      relatedWordsOrig
     });
-
-    break; // Stop after first successful selector
-  }
+  });
 
   return entries;
 };

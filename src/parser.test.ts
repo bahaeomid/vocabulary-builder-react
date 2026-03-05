@@ -43,49 +43,50 @@ const createSampleVocabHtml = (options?: {
 <html>
 <head><title>Test Vocab</title></head>
 <body>
-  <h2>General Vocabulary | Common Words</h2>
-  <div class="indented">
-    <ul class="toggle">
-      <li>
-        <details>
-          <summary>ephemeral</summary>
-          <ul>
-            <li>Lasting for a very short time</li>
-            <li>Example: The ephemeral beauty of cherry blossoms.</li>
-            <li>Variants & Related Words: transient, fleeting</li>
-          </ul>
-        </details>
-      </li>
-      <li>
-        <details>
-          <summary>ubiquitous</summary>
-          <ul>
-            <li>Present, appearing, or found everywhere</li>
-            <li>Example: Smartphones have become ubiquitous in modern society.</li>
-          </ul>
-        </details>
-      </li>
-    </ul>
-  </div>
-  <h2>General Vocabulary | Advanced</h2>
-  <div class="indented">
-    <ul class="toggle">
-      <li>
-        <details>
-          <summary>serendipity</summary>
-          <ul>
-            <li>The occurrence of events by chance in a happy way</li>
-            <li>Example: Finding that book was pure serendipity.</li>
-            <li>Variants & Related Words: ephemeral, luck</li>
-          </ul>
-        </details>
-      </li>
-    </ul>
-  </div>
-  ${commentsSection}
+<details open="">
+<summary>General Vocabulary</summary>
+<div class="indented">
+<h2>General Vocabulary | Common Words</h2>
+<ul class="toggle">
+<li>
+<details>
+<summary>ephemeral</summary>
+<ul>
+<li>Lasting for a very short time</li>
+<li>Example: The ephemeral beauty of cherry blossoms.</li>
+<li>Variants & Related Words: transient, fleeting</li>
+</ul>
+</details>
+</li>
+<li>
+<details>
+<summary>ubiquitous</summary>
+<ul>
+<li>Present, appearing, or found everywhere</li>
+<li>Example: Smartphones have become ubiquitous in modern society.</li>
+</ul>
+</details>
+</li>
+</ul>
+<h2>General Vocabulary | Advanced</h2>
+<ul class="toggle">
+<li>
+<details>
+<summary>serendipity</summary>
+<ul>
+<li>The occurrence of events by chance in a happy way</li>
+<li>Example: Finding that book was pure serendipity.</li>
+<li>Variants & Related Words: ephemeral, luck</li>
+</ul>
+</details>
+</li>
+</ul>
+</div>
+</details>
+${commentsSection}
 </body>
 </html>
-  `.trim();
+`.trim();
 };
 
 const createHtmlWithDefinitionMatch = (): string => {
@@ -93,34 +94,37 @@ const createHtmlWithDefinitionMatch = (): string => {
 <html>
 <head><title>Test Vocab</title></head>
 <body>
-  <h2>General Vocabulary | Test</h2>
-  <div class="indented">
-    <ul class="toggle">
-      <li>
-        <details>
-          <summary>happiness</summary>
-          <ul>
-            <li>The state of being happy; a feeling of joy and contentment</li>
-            <li>Example: Her happiness was evident in her smile.</li>
-          </ul>
-        </details>
-      </li>
-    </ul>
-  </div>
-  <details>
-    <summary>Inline comments</summary>
-    <div class="indented">
-      <p><b>Block text</b>: <mark class="highlight-yellow_background">joy</mark></p>
-      <ul class="toggle">
-        <li>
-          <div>Related to the definition of happiness.</div>
-        </li>
-      </ul>
-    </div>
-  </details>
+<details open="">
+<summary>General Vocabulary</summary>
+<div class="indented">
+<h2>General Vocabulary | Test</h2>
+<ul class="toggle">
+<li>
+<details>
+<summary>happiness</summary>
+<ul>
+<li>The state of being happy; a feeling of joy and contentment</li>
+<li>Example: Her happiness was evident in her smile.</li>
+</ul>
+</details>
+</li>
+</ul>
+</div>
+</details>
+<details>
+<summary>Inline comments</summary>
+<div class="indented">
+<p><b>Block text</b>: <mark class="highlight-yellow_background">joy</mark></p>
+<ul class="toggle">
+<li>
+<div>Related to the definition of happiness.</div>
+</li>
+</ul>
+</div>
+</details>
 </body>
 </html>
-  `.trim();
+`.trim();
 };
 
 // ============================================================
@@ -448,22 +452,25 @@ describe('integration tests', () => {
     const htmlNoExample = `
 <html>
 <body>
-  <h2>Test | Category</h2>
-  <div class="indented">
-    <ul class="toggle">
-      <li>
-        <details>
-          <summary>testword</summary>
-          <ul>
-            <li>A definition without example</li>
-          </ul>
-        </details>
-      </li>
-    </ul>
-  </div>
+<details open="">
+<summary>Test Category</summary>
+<div class="indented">
+<h2>Test | Category</h2>
+<ul class="toggle">
+<li>
+<details>
+<summary>testword</summary>
+<ul>
+<li>A definition without example</li>
+</ul>
+</details>
+</li>
+</ul>
+</div>
+</details>
 </body>
 </html>
-    `.trim();
+`.trim();
 
     const result = parseHtmlFile(htmlNoExample, 'test.html');
     expect(result.words[0].Example).toBe('');
