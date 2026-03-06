@@ -57,7 +57,12 @@ const SearchOption = styled.div<{ $selected: boolean; $dark: boolean }>`
   &:hover { background: ${props => props.$dark ? '#303050' : '#f0f4ff'}; }
 `;
 
-const AppContainer = styled.div`display: flex; flex-direction: column; height: 100vh; overflow: hidden;`;
+const AppContainer = styled.div`
+  display: flex; 
+  flex-direction: column; 
+  height: 100vh; 
+  overflow: hidden;
+`;
 
 const Header = styled.header<{ $dark: boolean }>`
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -68,17 +73,55 @@ const Header = styled.header<{ $dark: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  @media (max-width: 768px) {
+    padding: 12px 16`;
+
+const Title = styled.h1`
+px;
+  }
+  margin: 0; 
+  font-size: 1.5rem; 
+  font-weight: 600; 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  letter-spacing: -0.3px;
+
+  @media (max-width: 768px) {
+    font-size: 1.1rem;
+    gap: 8px;
+  }
 `;
 
-const Title = styled.h1`margin: 0; font-size: 1.5rem; font-weight: 600; display: flex; align-items: center; gap: 10px; letter-spacing: -0.3px;`;
-
-const ThemeToggle = styled.button`
+const ThemeToggle = styled.button<{ $isMobile?: boolean }>`
   width: 38px; height: 38px;
   border: none; border-radius: 8px;
   background: rgba(255, 255, 255, 0.15);
   color: white; font-size: 1.1rem;
   cursor: pointer;
   &:hover { background: rgba(255, 255, 255, 0.25); }
+
+  @media (max-width: 768px) {
+    width: 36px; height: 36px;
+    font-size: 1rem;
+  }
+`;
+
+const MobileMenuButton = styled.button<{ $dark: boolean }>`
+  display: none;
+  width: 38px; height: 38px;
+  border: none; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  color: white; font-size: 1.2rem;
+  cursor: pointer;
+  &:hover { background: rgba(255, 255, 255, 0.25); }
+
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 `;
 
 const MainContent = styled.div<{ $dark: boolean }>`
@@ -86,7 +129,7 @@ const MainContent = styled.div<{ $dark: boolean }>`
   background: ${props => props.$dark ? '#1a1a2e' : '#f5f7fa'};
 `;
 
-const Sidebar = styled.aside<{ $dark: boolean }>`
+const Sidebar = styled.aside<{ $dark: boolean; $isOpen: boolean }>`
   width: 360px;
   background: ${props => props.$dark ? '#252540' : '#ffffff'};
   border-right: 1px solid ${props => props.$dark ? '#353550' : '#e4e8ec'};
@@ -95,6 +138,35 @@ const Sidebar = styled.aside<{ $dark: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 18px;
+  transition: transform 0.3s ease;
+
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 85%;
+    max-width: 320px;
+    z-index: 200;
+    transform: ${props => props.$isOpen ? 'translateX(0)' : 'translateX(-100%)'};
+    box-shadow: ${props => props.$isOpen ? '4px 0 20px rgba(0, 0, 0, 0.3)' : 'none'};
+    padding-top: 80px;
+  }
+`;
+
+const SidebarOverlay = styled.div<{ $isOpen: boolean }>`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: ${props => props.$isOpen ? 'block' : 'none'};
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 150;
+  }
 `;
 
 const MainPanel = styled.main<{ $dark: boolean }>`
@@ -102,6 +174,10 @@ const MainPanel = styled.main<{ $dark: boolean }>`
   padding: 28px 36px;
   overflow-y: auto;
   background: ${props => props.$dark ? '#1a1a2e' : '#f8f9fb'};
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
 `;
 
 const UploadSection = styled.div<{ $dark: boolean }>`
@@ -407,6 +483,7 @@ const App: React.FC = () => {
   const [isActive, setIsActive] = useState<boolean>(false);
   const [autoLoadAttempted, setAutoLoadAttempted] = useState<boolean>(false);
   const [copiedWords, setCopiedWords] = useState<Record<string, boolean>>({});
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -632,12 +709,16 @@ const App: React.FC = () => {
       <GlobalStyle $dark={darkMode} />
       <AppContainer>
         <Header $dark={darkMode}>
-          <Title>📖 Vocabulary Builder</Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <MobileMenuButton $dark={darkMode} onClick={() => setIsMobileSidebarOpen(true)}>☰</MobileMenuButton>
+            <Title>📖 Vocabulary Builder</Title>
+          </div>
           <ThemeToggle onClick={() => setDarkMode(!darkMode)}>{darkMode ? '☀️' : '🌙'}</ThemeToggle>
         </Header>
         
         <MainContent $dark={darkMode}>
-          <Sidebar $dark={darkMode}>
+          <SidebarOverlay $isOpen={isMobileSidebarOpen} onClick={() => setIsMobileSidebarOpen(false)} />
+          <Sidebar $dark={darkMode} $isOpen={isMobileSidebarOpen}>
             <UploadSection $dark={darkMode}>
               <UploadLabel $dark={darkMode}>
                 📤 Upload Your HTML File
