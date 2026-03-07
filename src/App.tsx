@@ -200,20 +200,6 @@ const UploadLabel = styled.label<{ $dark: boolean }>`
 
 const HiddenInput = styled.input`display: none;`;
 
-const SearchableCategorySelect = styled.div`position: relative;`;
-
-const CategoryInput = styled.input<{ $dark: boolean }>`
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid ${props => props.$dark ? '#404060' : '#d8dde2'};
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-family: inherit;
-  background: ${props => props.$dark ? '#252540' : '#ffffff'};
-  color: ${props => props.$dark ? '#e8e8ef' : '#2d2d2d'};
-  &:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15); }
-`;
-
 const CategoryDropdown = styled.div<{ $visible: boolean; $dark: boolean }>`
   display: ${props => props.$visible ? 'block' : 'none'};
   position: absolute;
