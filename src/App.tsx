@@ -151,6 +151,8 @@ const Sidebar = styled.aside<{ $dark: boolean; $isOpen: boolean }>`
     transform: ${props => props.$isOpen ? 'translateX(0)' : 'translateX(-100%)'};
     box-shadow: ${props => props.$isOpen ? '4px 0 20px rgba(0, 0, 0, 0.3)' : 'none'};
     padding-top: 80px;
+    background: ${props => props.$dark ? 'rgba(37, 37, 64, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
+    backdrop-filter: blur(4px);
   }
 `;
 
@@ -164,7 +166,7 @@ const SidebarOverlay = styled.div<{ $isOpen: boolean }>`
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.2);
     z-index: 150;
   }
 `;
