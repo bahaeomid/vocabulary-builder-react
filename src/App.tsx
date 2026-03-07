@@ -571,7 +571,6 @@ const App: React.FC = () => {
     setSelectedWord(newWord);
     setSearchTerm(vocabData?.words.find(w => w.Word_norm === newWord)?.Word_orig || newWord);
     setCurrentWordIndex(newIdx + 1);
-    setIsMobileSidebarOpen(false);
   };
 
   const handlePrevWord = () => {
@@ -583,7 +582,6 @@ const App: React.FC = () => {
     setSelectedWord(newWord);
     setSearchTerm(vocabData?.words.find(w => w.Word_norm === newWord)?.Word_orig || newWord);
     setCurrentWordIndex(newIdx + 1);
-    setIsMobileSidebarOpen(false);
   };
 
   const handleCopyWord = async (word: string) => {
