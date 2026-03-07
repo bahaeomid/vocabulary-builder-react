@@ -450,7 +450,7 @@ const StatusMessage = styled.div<{ $type: 'success' | 'error' | 'loading'; $dark
   padding: 12px 14px;
   border-radius: 8px;
   font-size: 0.88rem;
-  ${props => props.$type === 'success' && `background: ${props.$dark ? 'rgba(16, 185, 129, 0.15)' : '#dcfce7'}; border: 1px solid ${props.$dark ? 'rgba(16, 185, 129, 0.3)' : '#bbf7d0'}; color: ${props.$dark ? '#34d399' : '#16a34a'};`}
+  ${props => props.$type === 'success' && `background: ${props.$dark ? 'rgba(16, 185, 129, 0.15)' : '#dcfce7'}; border: 1px solid ${props.$dark ? 'rgba(16, 185, 129, 0.3)' : '#bbf7d0'};`}
   ${props => props.$type === 'error' && `background: ${props.$dark ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2'}; border: 1px solid ${props.$dark ? 'rgba(239, 68, 68, 0.3)' : '#fecaca'}; color: ${props.$dark ? '#f87171' : '#dc2626'};`}
   ${props => props.$type === 'loading' && `background: ${props.$dark ? 'rgba(99, 102, 241, 0.15)' : '#e0e7ff'}; border: 1px solid ${props.$dark ? 'rgba(99, 102, 241, 0.3)' : '#c7d2fe'}; color: ${props.$dark ? '#818cf8' : '#6366f1'};`}
 `;
@@ -474,6 +474,10 @@ const App: React.FC = () => {
   const [showHighCatDropdown, setShowHighCatDropdown] = useState<boolean>(false);
   const [lowCatSearch, setLowCatSearch] = useState<string>('');
   const [showLowCatDropdown, setShowLowCatDropdown] = useState<boolean>(false);
+  const [highCatHighlight, setHighCatHighlight] = useState<number>(-1);
+  const [lowCatHighlight, setLowCatHighlight] = useState<number>(-1);
+  const [highCatFocused, setHighCatFocused] = useState<boolean>(false);
+  const [lowCatFocused, setLowCatFocused] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<number>(0);
   const [status, setStatus] = useState<ProcessStatus>({ type: 'loading', message: '' });
   const [showUnmatched, setShowUnmatched] = useState<boolean>(false);
@@ -484,6 +488,7 @@ const App: React.FC = () => {
   const [autoLoadAttempted, setAutoLoadAttempted] = useState<boolean>(false);
   const [copiedWords, setCopiedWords] = useState<Record<string, boolean>>({});
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -574,7 +579,9 @@ const App: React.FC = () => {
     if (words.length === 0) return;
     const idx = words.indexOf(selectedWord);
     const newIdx = idx === -1 ? 0 : idx === words.length - 1 ? 0 : idx + 1;
-    setSelectedWord(words[newIdx]);
+    const newWord = words[newIdx];
+    setSelectedWord(newWord);
+    setSearchTerm(vocabData?.words.find(w => w.Word_norm === newWord)?.Word_orig || newWord);
     setCurrentWordIndex(newIdx + 1);
   };
 
@@ -583,7 +590,9 @@ const App: React.FC = () => {
     if (words.length === 0) return;
     const idx = words.indexOf(selectedWord);
     const newIdx = idx === -1 ? words.length - 1 : idx === 0 ? words.length - 1 : idx - 1;
-    setSelectedWord(words[newIdx]);
+    const newWord = words[newIdx];
+    setSelectedWord(newWord);
+    setSearchTerm(vocabData?.words.find(w => w.Word_norm === newWord)?.Word_orig || newWord);
     setCurrentWordIndex(newIdx + 1);
   };
 
@@ -683,7 +692,7 @@ const App: React.FC = () => {
                         return (
                           <RelatedWordChip key={i} $dark={darkMode} $isMain={isMain} $isSelected={isSelected}>
                             <a href={`https://www.merriam-webster.com/dictionary/${encodeURIComponent(w.toLowerCase())}`} target="_blank" rel="noopener noreferrer">{w}</a>
-                            <IconButton onClick={() => { const allWords = getFilteredAllWords(); if (allWords.includes(normalizedW)) { setSelectedWord(normalizedW); setCurrentWordIndex(allWords.indexOf(normalizedW) + 1); setActiveTab(0); } handleCopyWord(w); }} $copied={copiedWords[w]} $dark={darkMode}>{copiedWords[w] ? '✅' : '📋'}</IconButton>
+                            <IconButton onClick={() => handleCopyWord(w)} $copied={copiedWords[w]} $dark={darkMode}>{copiedWords[w] ? '✅' : '📋'}</IconButton>
                           </RelatedWordChip>
                         );
                       })}
@@ -732,22 +741,30 @@ const App: React.FC = () => {
               <>
                 <div>
                   <Label $dark={darkMode}>📂 Category</Label>
-                  <SearchableCategorySelect>
-                    <CategoryInput $dark={darkMode} type="text" value={highCatSearch || selectedHighCat} onChange={(e) => { setHighCatSearch(e.target.value); setShowHighCatDropdown(true); }} onFocus={() => { setShowHighCatDropdown(true); setHighCatSearch(''); }} onBlur={() => setTimeout(() => setShowHighCatDropdown(false), 200)} placeholder="Search..." />
-                    <CategoryDropdown $visible={showHighCatDropdown} $dark={darkMode}>
-                      {getHighCatOptions().filter(cat => !highCatSearch || cat.toLowerCase().includes(highCatSearch.toLowerCase())).map(cat => <CategoryOption key={cat} $selected={cat === selectedHighCat} $dark={darkMode} onClick={() => { setSelectedHighCat(cat); setSelectedLowCat('All'); setHighCatSearch(''); setShowHighCatDropdown(false); }}>{cat}</CategoryOption>)}
-                    </CategoryDropdown>
-                  </SearchableCategorySelect>
+                  <WordSelectorContainer>
+                    <NavButton $dark={darkMode} onClick={() => { const opts = getHighCatOptions(); const idx = opts.indexOf(selectedHighCat); const newIdx = idx <= 0 ? opts.length - 1 : idx - 1; setSelectedHighCat(opts[newIdx]); setSelectedLowCat('All'); }} disabled={getHighCatOptions().length === 0}>◀</NavButton>
+                    <SearchableSelect>
+                      <SearchInput $dark={darkMode} type="text" value={highCatFocused ? highCatSearch : (highCatSearch || selectedHighCat)} onChange={(e) => { setHighCatSearch(e.target.value); setShowHighCatDropdown(true); setHighCatHighlight(-1); }} onKeyDown={(e) => { const opts = getHighCatOptions().filter(cat => !highCatSearch || cat.toLowerCase().includes(highCatSearch.toLowerCase())); if (e.key === 'Enter') { if (highCatHighlight >= 0 && opts[highCatHighlight]) { setSelectedHighCat(opts[highCatHighlight]); setSelectedLowCat('All'); setShowHighCatDropdown(false); setHighCatHighlight(-1); setHighCatSearch(''); setHighCatFocused(false); } else if (opts.length > 0) { setSelectedHighCat(opts[0]); setSelectedLowCat('All'); setShowHighCatDropdown(false); setHighCatHighlight(-1); setHighCatSearch(''); setHighCatFocused(false); } } else if (e.key === 'ArrowDown') { e.preventDefault(); setHighCatHighlight(prev => prev < opts.length - 1 ? prev + 1 : prev); } else if (e.key === 'ArrowUp') { e.preventDefault(); setHighCatHighlight(prev => prev > 0 ? prev - 1 : prev); } }} onFocus={() => { setShowHighCatDropdown(true); setHighCatSearch(''); setHighCatHighlight(-1); setHighCatFocused(true); }} onBlur={() => setTimeout(() => { setShowHighCatDropdown(false); setHighCatFocused(false); }, 200)} placeholder="Search..." />
+                      <CategoryDropdown $visible={showHighCatDropdown} $dark={darkMode}>
+                        {getHighCatOptions().filter(cat => !highCatSearch || cat.toLowerCase().includes(highCatSearch.toLowerCase())).map((cat, idx) => <CategoryOption key={cat} $selected={idx === highCatHighlight || cat === selectedHighCat} $dark={darkMode} onClick={() => { setSelectedHighCat(cat); setSelectedLowCat('All'); setHighCatSearch(''); setShowHighCatDropdown(false); setHighCatHighlight(-1); }}>{cat}</CategoryOption>)}
+                      </CategoryDropdown>
+                    </SearchableSelect>
+                    <NavButton $dark={darkMode} onClick={() => { const opts = getHighCatOptions(); const idx = opts.indexOf(selectedHighCat); const newIdx = idx <= 0 ? opts.length - 1 : idx - 1; setSelectedHighCat(opts[newIdx]); setSelectedLowCat('All'); }} disabled={getHighCatOptions().length === 0}>▶</NavButton>
+                  </WordSelectorContainer>
                 </div>
 
                 <div>
                   <Label $dark={darkMode}>🗃️ Subcategory</Label>
-                  <SearchableCategorySelect>
-                    <CategoryInput $dark={darkMode} type="text" value={lowCatSearch || selectedLowCat} onChange={(e) => { setLowCatSearch(e.target.value); setShowLowCatDropdown(true); }} onFocus={() => { setShowLowCatDropdown(true); setLowCatSearch(''); }} onBlur={() => setTimeout(() => setShowLowCatDropdown(false), 200)} placeholder="Search..." />
-                    <CategoryDropdown $visible={showLowCatDropdown} $dark={darkMode}>
-                      {getLowCatOptions().filter(cat => !lowCatSearch || cat.toLowerCase().includes(lowCatSearch.toLowerCase())).map(cat => <CategoryOption key={cat} $selected={cat === selectedLowCat} $dark={darkMode} onClick={() => { setSelectedLowCat(cat); setLowCatSearch(''); setShowLowCatDropdown(false); }}>{cat}</CategoryOption>)}
-                    </CategoryDropdown>
-                  </SearchableCategorySelect>
+                  <WordSelectorContainer>
+                    <NavButton $dark={darkMode} onClick={() => { const opts = getLowCatOptions(); const idx = opts.indexOf(selectedLowCat); const newIdx = idx <= 0 ? opts.length - 1 : idx - 1; setSelectedLowCat(opts[newIdx]); }} disabled={getLowCatOptions().length === 0}>◀</NavButton>
+                    <SearchableSelect>
+                      <SearchInput $dark={darkMode} type="text" value={lowCatFocused ? lowCatSearch : (lowCatSearch || selectedLowCat)} onChange={(e) => { setLowCatSearch(e.target.value); setShowLowCatDropdown(true); setLowCatHighlight(-1); }} onKeyDown={(e) => { const opts = getLowCatOptions().filter(cat => !lowCatSearch || cat.toLowerCase().includes(lowCatSearch.toLowerCase())); if (e.key === 'Enter') { if (lowCatHighlight >= 0 && opts[lowCatHighlight]) { setSelectedLowCat(opts[lowCatHighlight]); setShowLowCatDropdown(false); setLowCatHighlight(-1); setLowCatSearch(''); setLowCatFocused(false); } else if (opts.length > 0) { setSelectedLowCat(opts[0]); setShowLowCatDropdown(false); setLowCatHighlight(-1); setLowCatSearch(''); setLowCatFocused(false); } } else if (e.key === 'ArrowDown') { e.preventDefault(); setLowCatHighlight(prev => prev < opts.length - 1 ? prev + 1 : prev); } else if (e.key === 'ArrowUp') { e.preventDefault(); setLowCatHighlight(prev => prev > 0 ? prev - 1 : prev); } }} onFocus={() => { setShowLowCatDropdown(true); setLowCatSearch(''); setLowCatHighlight(-1); setLowCatFocused(true); }} onBlur={() => setTimeout(() => { setShowLowCatDropdown(false); setLowCatFocused(false); }, 200)} placeholder="Search..." />
+                      <CategoryDropdown $visible={showLowCatDropdown} $dark={darkMode}>
+                        {getLowCatOptions().filter(cat => !lowCatSearch || cat.toLowerCase().includes(lowCatSearch.toLowerCase())).map((cat, idx) => <CategoryOption key={cat} $selected={idx === lowCatHighlight || cat === selectedLowCat} $dark={darkMode} onClick={() => { setSelectedLowCat(cat); setLowCatSearch(''); setShowLowCatDropdown(false); setLowCatHighlight(-1); }}>{cat}</CategoryOption>)}
+                      </CategoryDropdown>
+                    </SearchableSelect>
+                    <NavButton $dark={darkMode} onClick={() => { const opts = getLowCatOptions(); const idx = opts.indexOf(selectedLowCat); const newIdx = idx >= opts.length - 1 ? 0 : idx + 1; setSelectedLowCat(opts[newIdx]); }} disabled={getLowCatOptions().length === 0}>▶</NavButton>
+                  </WordSelectorContainer>
                 </div>
 
                 <div>
@@ -755,15 +772,15 @@ const App: React.FC = () => {
                   <WordSelectorContainer>
                     <NavButton $dark={darkMode} onClick={handlePrevWord} disabled={allFilteredWords.length === 0}>◀</NavButton>
                     <SearchableSelect>
-                      <SearchInput $dark={darkMode} type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); }} onKeyDown={(e) => { if (e.key === 'Enter') { const trimmedTerm = searchTerm.trim(); if (trimmedTerm) { const exactMatch = allFilteredWords.find(w => w.toLowerCase() === trimmedTerm.toLowerCase()); if (exactMatch) { setSelectedWord(exactMatch); setCurrentWordIndex(allFilteredWords.indexOf(exactMatch) + 1); setShowDropdown(false); } else { setSelectedWord(trimmedTerm); setShowDropdown(false); } } } }} onFocus={() => setShowDropdown(true)} onBlur={() => setTimeout(() => setShowDropdown(false), 200)} placeholder="Search..." />
+                      <SearchInput $dark={darkMode} type="text" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setShowDropdown(true); setHighlightedIndex(-1); }} onKeyDown={(e) => { if (e.key === 'Enter') { if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) { const word = filteredOptions[highlightedIndex]; setSelectedWord(word); setSearchTerm(vocabData?.words.find(w => w.Word_norm === word)?.Word_orig || word); setCurrentWordIndex(allFilteredWords.indexOf(word) + 1); setShowDropdown(false); setHighlightedIndex(-1); } else { const trimmedTerm = searchTerm.trim(); if (trimmedTerm) { const exactMatch = allFilteredWords.find(w => w.toLowerCase() === trimmedTerm.toLowerCase()); if (exactMatch) { setSelectedWord(exactMatch); setCurrentWordIndex(allFilteredWords.indexOf(exactMatch) + 1); setShowDropdown(false); } else { setSelectedWord(trimmedTerm); setShowDropdown(false); } } } } else if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(prev => prev < filteredOptions.length - 1 ? prev + 1 : prev); } else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(prev => prev > 0 ? prev - 1 : prev); } }} onFocus={() => { setShowDropdown(true); setSearchTerm(''); setHighlightedIndex(-1); }} onBlur={() => setTimeout(() => setShowDropdown(false), 200)} placeholder="Search..." />
                       <SearchDropdown $visible={showDropdown && filteredOptions.length > 0} $dark={darkMode}>
-                        {filteredOptions.slice(0, 50).map((word: string) => <SearchOption key={word} $selected={word === selectedWord} $dark={darkMode} onClick={() => { setSelectedWord(word); setSearchTerm(vocabData.words.find(w => w.Word_norm === word)?.Word_orig || word); setCurrentWordIndex(allFilteredWords.indexOf(word) + 1); setShowDropdown(false); }}>{vocabData.words.find(w => w.Word_norm === word)?.Word_orig || word}</SearchOption>)}
+                        {filteredOptions.slice(0, 50).map((word: string, idx: number) => <SearchOption key={word} $selected={idx === highlightedIndex || word === selectedWord} $dark={darkMode} onClick={() => { setSelectedWord(word); setSearchTerm(vocabData.words.find(w => w.Word_norm === word)?.Word_orig || word); setCurrentWordIndex(allFilteredWords.indexOf(word) + 1); setShowDropdown(false); setHighlightedIndex(-1); }}>{vocabData.words.find(w => w.Word_norm === word)?.Word_orig || word}</SearchOption>)}
                       </SearchDropdown>
                     </SearchableSelect>
                     <NavButton $dark={darkMode} onClick={handleNextWord} disabled={allFilteredWords.length === 0}>▶</NavButton>
                   </WordSelectorContainer>
                 </div>
-                
+
                 {selectedWord && allFilteredWords.length > 0 && (
                   <div>
                     <ProgressBarContainer $dark={darkMode}><ProgressFill $percentage={progressPercentage} /></ProgressBarContainer>
@@ -771,20 +788,20 @@ const App: React.FC = () => {
                   </div>
                 )}
                 
-                <EmojiLegend $dark={darkMode}><span>🟢 Main</span><span>🟠 Selected</span></EmojiLegend>
+                <EmojiLegend $dark={darkMode}><span>🟢 Main</span><span>🟠 Main's Related</span></EmojiLegend>
               </>
             )}
             
             <StatusMessage $type={status.type} $dark={darkMode} style={{ cursor: status.type === 'success' ? 'pointer' : 'default' }}>
               {status.type === 'success' ? (
                 <>
-                  <div onClick={() => setShowFileDetails(!showFileDetails)} style={{ cursor: 'pointer', fontWeight: 600 }}>✅ Click to View Details</div>
+                  <div onClick={() => setShowFileDetails(!showFileDetails)} style={{ cursor: 'pointer', fontWeight: 600, color: darkMode ? '#6ee7b7' : '#065f46' }}>✅ Click to View Details</div>
                   {showFileDetails && vocabData && (
-                    <div style={{ paddingTop: '8px' }}>
-                      <div style={{ marginBottom: '4px' }}><b>File Date:</b> {vocabData.fileDate}</div>
+                    <div style={{ paddingTop: '8px', color: darkMode ? '#6ee7b7' : '#065f46' }}>
+                      <div style={{ marginBottom: '16px' }}><b>File Date:</b> {vocabData.fileDate}</div>
                       <div><b>{vocabData.stats.uniqueMainWords}</b> unique main words</div>
-                      <div><b>{vocabData.stats.uniqueRelatedWords}</b> unique related words</div>
-                      <div><b>{vocabData.stats.totalUniqueWords}</b> total unique words</div>
+                      <div style={{ marginTop: '2px' }}><b>{vocabData.stats.uniqueRelatedWords}</b> unique related words</div>
+                      <div style={{ marginTop: '2px' }}><b>{vocabData.stats.totalUniqueWords}</b> total unique words</div>
                     </div>
                   )}
                 </>
