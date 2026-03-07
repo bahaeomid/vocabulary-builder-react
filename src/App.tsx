@@ -450,6 +450,37 @@ const ActiveIndicator = styled.div<{ $active: boolean }>`
   z-index: 9999;
 `;
 
+const MobileBottomBar = styled.div<{ $dark: boolean }>`
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: ${props => props.$dark ? '#252540' : '#ffffff'};
+    border-top: 1px solid ${props => props.$dark ? '#353550' : '#e4e8ec'};
+    padding: 12px 16px;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 300;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const MobileWordInfo = styled.div<{ $dark: boolean }>`
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.85rem;
+    color: ${props => props.$dark ? '#e8e8ef' : '#2d2d2d'};
+  }
+`;
+
 const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [vocabData, setVocabData] = useState<ParsedVocabData | null>(null);
@@ -806,9 +837,20 @@ const App: React.FC = () => {
             )}
           </Sidebar>
           
-          <MainPanel $dark={darkMode}>
+          <MainPanel $dark={darkMode} style={{ paddingBottom: '80px' }}>
             {status.type === 'loading' ? <div style={{ textAlign: 'center', padding: '40px' }}><div style={{ fontSize: '2em', marginBottom: '16px' }}>⏳</div><p>{status.message}</p></div> : renderWordInfo()}
           </MainPanel>
+
+          {selectedWord && allFilteredWords.length > 0 && (
+            <MobileBottomBar $dark={darkMode}>
+              <NavButton $dark={darkMode} onClick={handlePrevWord} disabled={allFilteredWords.length === 0}>◀</NavButton>
+              <MobileWordInfo $dark={darkMode}>
+                <span>{currentWordIndex} of {allFilteredWords.length}</span>
+                <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{selectedWord}</span>
+              </MobileWordInfo>
+              <NavButton $dark={darkMode} onClick={handleNextWord} disabled={allFilteredWords.length === 0}>▶</NavButton>
+            </MobileBottomBar>
+          )}
         </MainContent>
         
         <ActiveIndicator $active={isActive} />
